@@ -142,13 +142,13 @@ class Inspection():
         plt.show()
     
     
-    def reciprocal_transformation(column)
+    def reciprocal_transformation(column):
         reciprocal=1/column
         reciprocal=normalize(reciprocal)
         print(reciprocal.describe())
         return reciprocal
         
-    def log_transformation(column)
+    def log_transformation(column):
         log = np.log(column)
         log=normalize(log)
         print(log.describe())
