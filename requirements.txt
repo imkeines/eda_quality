@@ -14,7 +14,6 @@ scikit-learn
 geopy
 itertools
 timeit
-movingpandas
 statistics
 random
 plotly
