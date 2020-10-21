@@ -17,5 +17,3 @@ from .EDA import correction
 from .trajectories.preprocessing import Preprocessing
 from .trajectories.track_converter import TrackConverter
 from .trajectories.visualisation import Visualiser
-from .trajectories.track_similarity import *
-
