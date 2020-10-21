@@ -3,6 +3,7 @@ pandas
 requests
 geopandas
 matplotlib
+seaborn
 pydeck
 ipython
 folium
@@ -15,9 +16,9 @@ geopy
 itertools
 timeit
 statistics
+math
 random
 plotly
-similaritymeasures
 datetime
 copy
 json

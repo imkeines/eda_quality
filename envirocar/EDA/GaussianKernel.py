@@ -1,5 +1,5 @@
 # Gaussian Kernel Regression
-# Please have a look at the artictle https://www.kaggle.com/kunjmehta/gaussian-kernel-regression-from-scratch
+# Please have a look at the article https://www.kaggle.com/kunjmehta/gaussian-kernel-regression-from-scratch
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
