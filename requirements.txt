@@ -13,7 +13,6 @@ shapely
 branca
 scikit-learn
 geopy
-timeit
 statistics
 math
 random
