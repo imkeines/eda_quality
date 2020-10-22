@@ -16,5 +16,4 @@ geopy
 statistics
 plotly
 datetime
-json
 git
