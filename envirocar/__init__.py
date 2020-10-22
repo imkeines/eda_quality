@@ -14,6 +14,4 @@ from .EDA import inspection
 from .EDA import manipulation
 from .EDA import correction
 
-from .trajectories.preprocessing import Preprocessing
 from .trajectories.track_converter import TrackConverter
-from .trajectories.visualisation import Visualiser
