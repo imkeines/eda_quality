@@ -14,7 +14,6 @@ branca
 scikit-learn
 geopy
 statistics
-random
 plotly
 datetime
 copy
