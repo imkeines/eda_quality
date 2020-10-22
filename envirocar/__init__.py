@@ -4,14 +4,11 @@ from .client.api.track_api import TrackAPI
 from .client.request_param import BboxSelector, TimeSelector
 
 
-# Import classes 
-#from .EDA.inspection import Inspection
-#from .EDA.manipulation import Manipulation
-#from .EDA.correction import Correction
+# Import classes
 from .EDA.GaussianKernel import GKR
 
+# Import modules
 from .EDA import inspection
 from .EDA import manipulation
 from .EDA import correction
-
 from .trajectories.track_converter import TrackConverter
