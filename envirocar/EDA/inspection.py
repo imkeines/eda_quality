@@ -17,6 +17,7 @@ from math import floor, ceil
 
 
 
+
 # class Inspection():
 #     def __init__(self):
 #         print("Initializing class 'Inspection'")  
@@ -428,26 +429,6 @@ def plot_distribution(points, column):
     plt.show()
 
 
-def plot_point_values(points, value):
-    """ To show points on a map
-
-    Keyword Arguments:
-        points {GeoDataFrame} -- points input
-        value {string} -- column value to use for colouriing
-
-    Returns:
-        No Return
-    """
-
-    points['lat'] = points['geometry'].apply(lambda coord: coord.y)
-    points['lng'] = points['geometry'].apply(lambda coord: coord.x)
-
-    # Visualizing points by the desired value
-    fig = px.scatter_mapbox(points, lat="lat", lon="lng", color=value,
-                            title=value + " visualisation", zoom=8)
-    fig.update_layout(mapbox_style="open-street-map",
-                      margin={"r": 5, "t": 50, "l": 10, "b": 5})
-    fig.show()
 
 def plot_region(region, region_map, region_color, label):
     """ To plot provided regions over the provided map
@@ -527,7 +508,8 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
     """
     Aggregates the given field on hour and weekday basis.
     Prepares data for mosaic plot
-
+    FOR THIS TO WORK YOU NEED TO INSTALL RTree or Rtree-linux!!!
+    # TODO This function is poorly performing
     Parameters
     ----------
     df : geopandas dataframe
@@ -553,7 +535,7 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
 
     # Get crs from data
     sourceCRS = df.crs
-    targetCRS = {'init': "epsg:3857"}
+    targetCRS = "epsg:3857"
     # Reproject to Mercator\
     df = df.to_crs(targetCRS)
 
@@ -595,10 +577,14 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
 
     df['hour'] = df['time'].apply(
         lambda x: datetime.datetime.strptime(
-            x, '%Y-%m-%dT%H:%M:%S')).dt.hour
+            x, '%Y-%m-%dT%H:%M:%S+00:00')).dt.hour
     df['weekday'] = df['time'].apply(
         lambda x: datetime.datetime.strptime(
-            x, '%Y-%m-%dT%H:%M:%S')).dt.dayofweek
+            x, '%Y-%m-%dT%H:%M:%S+00:00')).dt.dayofweek
+
+    # df['hour'] = pd.to_datetime(df['time']).dt.hour
+    # df['weekday'] = pd.to_datetime(df['time']).dt.dayofweek
+
     points_identified = gpd.sjoin(df, grid, op='within')
 
     # group points by gridid and calculate mean Easting,
@@ -617,6 +603,7 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
     # Create Subgrids
     subgrid, mainGrid, rowNum, columnNum, value = [], [], [], [], []
     unikGrid = grouped['gridId_'].unique()
+    print('running; wait till you see "finished"')
     for currentGrid in unikGrid:
         dataframe = grid[grid['gridId'] == currentGrid]
         xmin, ymin, xmax, ymax = dataframe.total_bounds
@@ -660,6 +647,7 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
     subgrid_gpd = subgrid_gpd.dropna()
     grid = grid.to_crs(sourceCRS)
     grid = grid[grid['gridId'].isin(unikGrid)]
+    print('finished')
     return grid, subgrid_gpd
     # final_subgrid=subgrid_gpd[subgrid_gpd['value'].notnull()]
     # return final_subgrid
@@ -709,6 +697,7 @@ def MosaicPlot(mainGrid, grid, field):
     # Get coordiantes for map centre
     lat = grid.geometry.centroid.y.mean()
     lon = grid.geometry.centroid.x.mean()
+
     # Intialize a new folium map object
     m = folium.Map(location=[lat, lon],
                    zoom_start=10, tiles='Stamen Toner')
@@ -770,6 +759,100 @@ def MosaicPlot(mainGrid, grid, field):
     return m
     # Aggregate data by weekday and hour
 
+
+
+
+def aggregateByGrid(df, field, summary, gridSize):
+    """
+    Aggregates the specified field with chosen summary type and user
+        defined grid size. returns aggregated grids with summary
+
+    Parameters
+    ----------
+    df : geopandas dataframe
+    field : string
+        field to be summarized.
+    summary : string
+        type of summary to be sumarized. eg. min, max,sum, median
+    gridSize : float
+        the size of grid on same unit as geodataframe coordinates.
+
+    Returns
+    -------
+    geodataframe
+        Aggregated grids with summary on it
+
+    """
+    def round_down(num, divisor):
+        return floor(num / divisor) * divisor
+
+    def round_up(num, divisor):
+        return ceil(num / divisor) * divisor
+
+    # Get crs from data
+    sourceCRS = df.crs
+    targetCRS = "EPSG:3857"
+    # Reproject to Mercator\
+    df = df.to_crs(targetCRS)
+    # Get bounds
+    xmin, ymin, xmax, ymax = df.total_bounds
+    print(xmin, ymin, xmax, ymax)
+    height, width = gridSize, gridSize
+    top, left = round_up(ymax, height), round_down(xmin, width)
+    bottom, right = round_down(ymin, height), round_up(xmax, width)
+
+    rows = int((top - bottom) / height)+1
+    cols = int((right - left) / width)+1
+
+    XleftOrigin = left
+    XrightOrigin = left + width
+    YtopOrigin = top
+    YbottomOrigin = top - height
+    polygons = []
+    for i in range(cols):
+        Ytop = YtopOrigin
+        Ybottom = YbottomOrigin
+        for j in range(rows):
+            polygons.append(Polygon([(XleftOrigin, Ytop),
+                                     (XrightOrigin, Ytop),
+                                     (XrightOrigin, Ybottom),
+                                     (XleftOrigin, Ybottom)]))
+            Ytop = Ytop - height
+            Ybottom = Ybottom - height
+        XleftOrigin = XleftOrigin + width
+        XrightOrigin = XrightOrigin + width
+
+    grid = gpd.GeoDataFrame({'geometry': polygons})
+    grid.crs = df.crs
+
+    # Assign gridid
+    numGrid = len(grid)
+    grid['gridId'] = list(range(numGrid))
+
+    # Identify gridId for each point
+    points_identified = gpd.sjoin(df, grid, op='within')
+
+    # group points by gridid and calculate mean Easting,
+    # store it as dataframe
+    # delete if field already exists
+    if field in grid.columns:
+        del grid[field]
+    grouped = points_identified.groupby('gridId')[field].agg(summary)
+    grouped_df = pd.DataFrame(grouped)
+
+    new_grid = grid.join(grouped_df, on='gridId').fillna(0)
+    grid = new_grid.to_crs(sourceCRS)
+    summarized_field = summary+"_"+field
+    final_grid = grid.rename(columns={field: summarized_field})
+    final_grid = final_grid[final_grid[summarized_field] > 0].sort_values(
+        by=summarized_field, ascending=False)
+    final_grid[summarized_field] = round(final_grid[summarized_field], 1)
+    final_grid['x_centroid'], final_grid['y_centroid'] = \
+        final_grid.geometry.centroid.x, final_grid.geometry.centroid.y
+    return final_grid
+
+
+
 def aggregateHourly(df, field, summary):
     """
     Aggregates the whole data by weekday and hour as preparation step for
@@ -793,10 +876,14 @@ def aggregateHourly(df, field, summary):
     # extract date and time from timestamp
     df['hour'] = df['time'].apply(
         lambda x: datetime.datetime.strptime(
-            x, '%Y-%m-%dT%H:%M:%S')).dt.hour
+            x, '%Y-%m-%dT%H:%M:%S+00:00')).dt.hour
     df['weekday'] = df['time'].apply(
         lambda x: datetime.datetime.strptime(
-            x, '%Y-%m-%dT%H:%M:%S')).dt.dayofweek
+            x, '%Y-%m-%dT%H:%M:%S+00:00')).dt.dayofweek
+
+    # df['hour'] = pd.to_datetime(df['time']).dt.hour
+    # df['weekday'] = pd.to_datetime(df['time']).dt.dayofweek
+
     # Aggregate by weekday and hour
     dayhourAggregate = df.groupby(
         ['weekday', 'hour']).agg({field: [summary]})
@@ -835,6 +922,99 @@ def OriginAndDestination(df):
         destination = destination.append(current_destination)
     return origin, destination
 
+def plotAggregate(grid, field):
+    """
+    Plots the aggregated data on grid. Please call aggregateByGrid
+        function before this step.
+
+    Parameters
+    ----------
+    grid :polygon geodataframe
+        The grid geodataframe with grid and aggregated data in a column.
+        Grid shoud have grid id or equivalent unique ids
+    field : string
+        Fieldname with aggregated data
+
+    Returns
+    -------
+    m : folium map object
+        Folium map with openstreetmap as base.
+
+    """
+    # Prepare for grid plotting using folium
+    grid.columns = [cols.replace('.', '_') for cols in grid.columns]
+    field = field.replace('.', '_')
+    # Convert grid id to string
+    grid['gridId'] = grid['gridId'].astype(str)
+
+    # Convert data to geojson and csv
+    atts = pd.DataFrame(grid)
+    grid.to_file("grids.geojson", driver='GeoJSON')
+    atts.to_csv("attributes.csv", index=False)
+
+    # load spatial and non-spatial data
+    data_geojson_source = "grids.geojson"
+    # data_geojson=gpd.read_file(data_geojson_source)
+    data_geojson = json.load(open(data_geojson_source))
+
+    # Get coordiantes for map centre
+    lat = grid.geometry.centroid.y.mean()
+    lon = grid.geometry.centroid.x.mean()
+    # Intialize a new folium map object
+    m = folium.Map(location=[lat, lon], zoom_start=10,
+                   tiles='OpenStreetMap')
+
+    # Configure geojson layer
+    folium.GeoJson(data_geojson,
+                   lambda feature: {'lineOpacity': 0.4,
+                                    'color': 'black',
+                                    'fillColor': None,
+                                    'weight': 0.5,
+                                    'fillOpacity': 0}).add_to(m)
+
+    # add attribute data
+    attribute_pd = pd.read_csv("attributes.csv")
+    attribute = pd.DataFrame(attribute_pd)
+    # Convert gridId to string to ensure it matches with gridId
+    attribute['gridId'] = attribute['gridId'].astype(str)
+
+    # construct color map
+    minvalue = attribute[field].min()
+    maxvalue = attribute[field].max()
+    colormap_rn = linear.YlOrRd_09.scale(minvalue, maxvalue)
+
+    # Create Dictionary for colormap
+    population_dict_rn = attribute.set_index('gridId')[field]
+
+    # create map
+    folium.GeoJson(
+        data_geojson,
+        name='Choropleth map',
+        style_function=lambda feature: {
+            'lineOpacity': 0,
+            'color': 'green',
+            'fillColor': colormap_rn(
+                population_dict_rn[feature['properties']['gridId']]),
+            'weight': 0,
+            'fillOpacity': 0.6
+        },
+        highlight_function=lambda feature: {'weight': 3, 'color': 'black',
+                                            'fillOpacity': 1},
+        tooltip=folium.features.GeoJsonTooltip(fields=[field],
+                                               aliases=[field])
+    ).add_to(m)
+
+    # format legend
+    field = field.replace("_", " ")
+    # add a legend
+    colormap_rn.caption = '{value} per grid'.format(value=field)
+    colormap_rn.add_to(m)
+
+    # add a layer control
+    folium.LayerControl().add_to(m)
+    return m
+
+
 def getClusters(positions, distanceKM, min_samples=5):
     """
     Returns the clusters from the points based on provided data to no. of
@@ -865,7 +1045,7 @@ def getClusters(positions, distanceKM, min_samples=5):
         centermost_point = min(
             cluster, key=lambda point: great_circle(point, centroid).m)
         return tuple(centermost_point)
-    df = positions.to_crs({'init': 'epsg:4326'})
+    df = positions.to_crs('epsg:4326')
     lon = df.geometry.x
     lat = df.geometry.y
     origin_pt = pd.DataFrame()

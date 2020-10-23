@@ -144,6 +144,37 @@ def flag_outlier_in_sample(df, dropOutlierColumn=False, setOutlierToNan=False, d
     return df
 
 
+def remove_outliers(points, column):
+    """ Remove outliers by using the statistical approach
+    as described in
+    https://www.itl.nist.gov/div898/handbook/prc/section1/prc16.htm
+
+    Keyword Arguments:
+        points {GeoDataFrame} -- A GeoDataFrame containing the track points
+        column {String} -- Columnn name to remove outliers from
+
+    Returns:
+        new_points -- Points with outliers removed
+    """
+
+    if (column == "Acceleration.value"):
+        # trying to keep outliers while removing unrealistic values
+        new_points = points.loc[(points[column] > -20) & (
+            points[column] < 20)]
+    else:
+        # broader range with 0.01 and 0.99
+        first_quartile = points[column].quantile(0.10)
+        third_quartile = points[column].quantile(0.90)
+        iqr = third_quartile-first_quartile   # Interquartile range
+        fence_low = first_quartile - 1.5 * iqr
+        fence_high = third_quartile + 1.5 * iqr
+
+        new_points = points.loc[(points[column] > fence_low) & (
+            points[column] < fence_high)]
+    print('Removed outliers: ', points.shape[0]-new_points.shape[0])
+    return new_points
+
+
 def flag_outlier_in_track(df, dropLimits=True, dropOutlierColumn=True, setOutlierToNan=False, dropFlag=False):
     
     def low_limit(x):
