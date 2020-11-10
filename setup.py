@@ -12,7 +12,7 @@ def parse_long_description():
     return io.open('README.md', encoding="utf-8").read()
 
 setup(
-    name="envirocar-py",
+    name="eda_quality",
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={
         "": ["*.txt"]
