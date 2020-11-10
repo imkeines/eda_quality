@@ -8,7 +8,7 @@ some functionality to determine data quality and to do basic cleaning/preprocess
 The package requires a Python version >= 3.7.
 
 ## Examples
-Jupyter notebooks on how to use this package to explore and preprocess enviroCar trajectory data can be found in the examples folder:
+Jupyter notebooks on how to use this package to explore and preprocess enviroCar trajectory data can be found in the
 [examples folder](https://github.com/imkeines/eda_quality/tree/main/examples )
 
 ## License ##
