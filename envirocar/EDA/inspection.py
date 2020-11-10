@@ -612,7 +612,9 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
             (ymax-ymin)*0.05, ymax-(ymax-ymin)*0.05
         rowOffset = (ymaxx-yminn)/24.0
         colOffset = (xmaxx - xminn)/7.0
+        tmp = (grouped['gridId_'] == currentGrid)
         for i in range(7):
+            tmp2=(grouped['weekday_'] == i)
             for j in range(24):
                 topy, bottomy, leftx, rightx = ymaxx-j*rowOffset, ymaxx - \
                     (j+1)*rowOffset, xminn+i * \
@@ -623,12 +625,12 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
                 mainGrid.append(currentGrid)
                 rowNum.append(j)
                 columnNum.append(i)
-                if len(grouped[(grouped['gridId_'] == currentGrid)
-                       & (grouped['weekday_'] == i)
+                if len(grouped[tmp
+                       & tmp2
                        & (grouped['hour_'] == j)]) != 0:
                     this_value = grouped[
-                        (grouped['gridId_'] == currentGrid)
-                        & (grouped['weekday_'] == i)
+                        tmp
+                        & tmp2
                         & (grouped['hour_'] == j)].iloc[0][
                             modified_fieldname]
                     value.append(this_value)
@@ -652,6 +654,7 @@ def spatioTemporalAggregation(df, field, summary, gridSize):
     # final_subgrid=subgrid_gpd[subgrid_gpd['value'].notnull()]
     # return final_subgrid
 
+#############################################################################################################################
 def MosaicPlot(mainGrid, grid, field):
     """
     Performs spatio temporal aggregation of data on weekday and hour,
