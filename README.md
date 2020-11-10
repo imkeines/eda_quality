@@ -1,26 +1,15 @@
-# envirocar-py
+# envirocar-py eda_quality
 
-The enviroCar Python package allows users to query and download trajectory data from the enviroCar API. The data will be stored in a flat GeoDataFrame from GeoPandas. The resulting dataframe consists of all measurements from the requested tracks including measured sensor values from the cars and further metadata about the track. 
-
-The package currently only supports querying track data. It is intended to further expand these functionalities with additional analytics in the future.
+The eda_quality Python package allows users to explore trajectory data from the enviroCar API by means of basic descriptive statistics. Further, it provides
+some functionality to determine data quality and to do basic cleaning/preprocessing steps.
 
 ## Installation
 
-The package requires a Python version >= 3.6. The package is available on the PyPI package manager and can be installed with the following command:
-
-```
-pip install envirocar-py --upgrade
-```
-
-To install envirocar-py in develop mode, use the following:
-
-```
-python setup.py develop
-```
+The package requires a Python version >= 3.7.
 
 ## Examples
-Jupyter notebooks on how to use this package to request data from enviroCar API can be found in the examples folder:
- * Download data and visualize with pydeck ([here](https://github.com/enviroCar/envirocar-py/blob/master/examples/api_request_deckgl.ipynb))
+Jupyter notebooks on how to use this package to explore and preprocess enviroCar trajectory data can be found in the examples folder:
+[examples folder](https://github.com/imkeines/eda_quality/tree/main/examples )
 
 ## License ##
     MIT License
