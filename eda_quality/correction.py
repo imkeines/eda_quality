@@ -1,10 +1,206 @@
 import pandas as pd
-import numpy as np 
+import numpy as np
+import time
+import datetime
+
 import geopandas as gpd
 
 # class Correction():
 #     def __init__(self):
-#         print("Initializing class 'Correction'")  
+#         print("Initializing class 'Correction'")
+
+
+
+def track_duration_time(df):
+    '''
+         Aim:
+            Create a time object in DF which holds the duration of a track in format hh:mm:ss
+         Input:
+             Geopandas Dataframe,
+         Output:
+             Geopandas Dataframe with column 'track_duration_h'
+     '''
+    def timedeltaToTime(sec):
+        '''
+            Aim:
+                Convert timedelta in seconds to string in UTC
+            Input:
+                seconds as float
+            Output:
+              UTC string
+        '''
+
+        timeUTC = time.gmtime(sec) # converting seconds to a struct.time in UTC
+        timeString = time.strftime("%H:%M:%S",timeUTC)
+        return timeString
+
+    # Create time objects from string objects
+    df['time_track_begin'] = pd.to_datetime(df['track.begin'])
+    df['time_track_end'] = pd.to_datetime(df['track.end'])
+
+    # Create a column with timedelta as total seconds as a float type
+    df['track_duration_seconds'] = (df['time_track_end']-df['time_track_begin']) / pd.Timedelta(seconds=1)
+    
+    # Create time string (hh:mm:ss) from timedelta
+    df['track_duration_h'] = df['track_duration_seconds'].apply(lambda x: timedeltaToTime(x))
+
+    # Create time object from timedelta string
+    df['track_duration_h']= pd.to_datetime(df['track_duration_h'], format= '%H:%M:%S').dt.time
+
+    # Drop colum with track duration in total seconds
+    df = df.drop(['track_duration_seconds'], axis=1)
+    
+    return df
+
+
+def exceed_eight_hours(df, flag=True):
+    '''
+        Aim:
+            Check if there are tracks with a duration > 8 h 
+            Delete tracks with duration > 8h
+            Optional: Flag all timestamps of tracks with duration > 8h
+        Input:
+            Geopandas Dataframe,
+        Output:
+            Geopandas DF with added column which flags all time stamps belonging to a track which falls below 5 min time duration
+            Geopandas DF containing only tracks which do not exceed duration of 8 hours,
+            Pandas DF which contains two columns, track.id and track_duration_h
+    '''
+
+    # Create DF from grouped tracks and their time duration if not already in DF
+    if 'track_duration_h' not in df.columns:
+        df = track_duration_time(df)
+
+    # Create DF from grouped tracks which holds only two columns, track.id and track_duration_h
+    track_lengths = df.groupby('track.id')['track_duration_h'].first().to_frame().reset_index()
+
+    # Create a list from tracks which duration exceeds eight hours
+    track_lengths['exceedingEightHours'] = 0
+    track_lengths.loc[track_lengths['track_duration_h'] >= datetime.time(8, 0, 0), 'exceedingEightHours'] = track_lengths['track.id']
+    listExceedEightHours = [row for row in track_lengths['exceedingEightHours'] if row != 0]
+
+    if len(listExceedEightHours) == 0:
+        cleanDF = df
+        # For return, create empty DF
+        df_eight = pd.DataFrame({'track.id': [], 'track_duration_h': []})
+        print('no track duration exceeds eight hours')
+    else:
+        # For return, create DF from all tracks which duration exceeds eight hours
+        print(len(listExceedEightHours), 'tracks are longer than eight hours')
+        df_eight = track_lengths[track_lengths['track.id'].isin(listExceedEightHours)]
+        df_eight = df_eight[['track.id', 'track_duration_h']]
+
+        # For return, create complete DF with tracks which time duration is shorter than 8 hours
+        track_lengths['underEightHours'] = 0
+        track_lengths.loc[track_lengths['track_duration_h'] < datetime.time(8, 0, 0), 'underEightHours'] = track_lengths['track.id']
+        listUnderEightHours = [row for row in track_lengths['underEightHours'] if row != 0]
+        cleanDF = pd.DataFrame(df[df['track.id'].isin(listUnderEightHours)])
+
+    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration > 8
+    if flag == True:
+        df['track_exceeds_8h'] = 0
+        df.loc[df['track_duration_h'] > datetime.time(8, 0, 0), 'track_exceeds_8h'] = 1
+
+    return df, cleanDF, df_eight
+
+
+def below_five_min(df, flag=True):
+    '''
+        Aim:
+            Check if there are tracks with a duration < 5 min
+            Delete tracks with duration < 5 min
+            Optional: Flag all timestamps of tracks with duration < 5 min
+        Input:
+            Geopandas Dataframe,
+        Output:
+            Geopandas DF with added column which flags all time stamps belonging to tracks falling below 5 min time duration with 1
+            Geopandas DF containing only tracks which are longer than 5 min
+            Pandas DF which contains two columns, track.id and track_duration_h
+    '''
+
+    # Add time column
+    if 'track_duration_h' not in df.columns:
+        df = track_duration_time(df)
+
+    # From grouped tracks create DF which holds two columns only, track.id and track_duration_h
+    track_lengths = df.groupby('track.id')['track_duration_h'].first().to_frame().reset_index()
+
+    # Create a list from tracks which duration < 5 min
+    track_lengths['belowFiveMin'] = 0
+    track_lengths.loc[track_lengths['track_duration_h'] <= datetime.time(0, 5, 0), 'belowFiveMin'] = track_lengths['track.id']
+    listBelowFiveMin = [row for row in track_lengths['belowFiveMin'] if row != 0]
+
+    if len(listBelowFiveMin) == 0:
+        cleanDF = df
+        # For return, create empty DF
+        df_five = pd.DataFrame({'track.id': [], 'track_duration_h': []})
+        print('no track duration falls below 5 minutes')
+    else:
+        # For return, create DF from all tracks which duration exceeds eight hours
+        print(len(listBelowFiveMin), 'tracks are shorter than 5 minutes')
+        df_five = track_lengths[track_lengths['track.id'].isin(listBelowFiveMin)]
+        df_five = df_five[['track.id', 'track_duration_h']]
+
+        # For return, create complete DF with tracks which time duration is shorter than 8 hours
+        track_lengths['overFiveMin'] = 0
+        track_lengths.loc[track_lengths['track_duration_h'] > datetime.time(0, 5, 0), 'overFiveMin'] = track_lengths['track.id']
+        listOverFiveMin = [row for row in track_lengths['overFiveMin'] if row != 0]
+        cleanDF = pd.DataFrame(df[df['track.id'].isin(listOverFiveMin)])
+
+    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration > 8
+    if flag == True:
+        df['track_below_5min'] = 0
+        df.loc[df['track_duration_h'] < datetime.time(0, 5, 0), 'track_below_5min'] = 1
+
+    return df, cleanDF, df_five
+
+
+
+
+def implausible_Max_Speed(df, flag=True):
+    '''
+        Aim:
+            Check if there are tracks with speeds > 250km/h
+            Delete tracks with speeds > 250km/h
+            Optional: Flag timestamps with speeds above 250km/h
+        Input:
+            Geopandas Dataframe,
+            optional: Boolean variable 'flag'
+        Output:
+            Input Geopandas Dataframe with added flag column if parameter 'flag' set to True,
+            Geopandas Dataframe containing only tracks which do not exceed max speed of  250km/h,
+            Pandas Dataframe which contains two columns, track.id and track_max_speed
+    '''
+
+    # Create DF from grouped tracks and their max speed value
+    track_lengths = df.groupby('track.id')['Speed.value'].max().to_frame(name='track_max_speed').reset_index()
+
+    # Create list and DF with tracks which max speed exceeds 250km/h
+    track_lengths['exceeds250km'] = 0
+    track_lengths.loc[track_lengths['track_max_speed'] >= 250, 'exceeds250km'] = track_lengths['track.id']
+    listExceeding250 = [row for row in track_lengths['exceeds250km'] if row != 0]
+
+    if len(listExceeding250) == 0:
+        print('no track exceeds max speed 250km/h')
+        cleanDF = df
+        # Create empty DF for return
+        df_250 = pd.DataFrame({'track.id': [], 'track_max_speed': []})
+    else:
+        print(len(listExceeding250), 'tracks exceed max speed 250')
+        df_250 = track_lengths[track_lengths['track.id'].isin(listExceeding250)]
+        df_250 = df_250[['track.id', 'track_max_speed']]
+        # Create list and DF with tracks which max speed is below 250km
+        track_lengths['speedUnder250km_h'] = 0
+        track_lengths.loc[track_lengths['track_max_speed'] < 250, 'speedUnder250km_h'] = track_lengths['track.id']
+        listUnder250 = [row for row in track_lengths['speedUnder250km_h'] if row != 0]
+        cleanDF = pd.DataFrame(df[df['track.id'].isin(listUnder250)])
+
+    # To flag implausible values, add column which holds boolean value, 1 = speed > 250
+    if flag == True:
+        df['speedExceeds250km_h'] = 0
+        df.loc[df['Speed.value'] > 250, 'speedExceeds250km_h'] = 1
+
+    return df, cleanDF, df_250
 
 
 def flag_faulty_percentages(df, setValueToNan=True, dropColumns=True, dropFlag=False):
