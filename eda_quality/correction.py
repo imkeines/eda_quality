@@ -96,7 +96,7 @@ def exceed_eight_hours(df, flag=True):
         listUnderEightHours = [row for row in track_lengths['underEightHours'] if row != 0]
         cleanDF = pd.DataFrame(df[df['track.id'].isin(listUnderEightHours)])
 
-    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration > 8
+    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration > 8 hours
     if flag == True:
         df['track_exceeds_8h'] = 0
         df.loc[df['track_duration_h'] > datetime.time(8, 0, 0), 'track_exceeds_8h'] = 1
@@ -136,18 +136,18 @@ def below_five_min(df, flag=True):
         df_five = pd.DataFrame({'track.id': [], 'track_duration_h': []})
         print('no track duration falls below 5 minutes')
     else:
-        # For return, create DF from all tracks which duration exceeds eight hours
+        # For return, create DF from all tracks which duration falls below 5 min
         print(len(listBelowFiveMin), 'tracks are shorter than 5 minutes')
         df_five = track_lengths[track_lengths['track.id'].isin(listBelowFiveMin)]
         df_five = df_five[['track.id', 'track_duration_h']]
 
-        # For return, create complete DF with tracks which time duration is shorter than 8 hours
+        # For return, create complete DF with tracks which time duration is longer than 5 minutes
         track_lengths['overFiveMin'] = 0
         track_lengths.loc[track_lengths['track_duration_h'] > datetime.time(0, 5, 0), 'overFiveMin'] = track_lengths['track.id']
         listOverFiveMin = [row for row in track_lengths['overFiveMin'] if row != 0]
         cleanDF = pd.DataFrame(df[df['track.id'].isin(listOverFiveMin)])
 
-    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration > 8
+    # To flag implausible values in original df, add column which holds boolean value, 1 = track_duration < 5 min
     if flag == True:
         df['track_below_5min'] = 0
         df.loc[df['track_duration_h'] < datetime.time(0, 5, 0), 'track_below_5min'] = 1
